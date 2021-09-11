@@ -1,0 +1,167 @@
+# 4장 테라폼 모듈로 재사용 가능한 인프라 생성하기
+
+> 지난 3장에서...
+> 상태관리 - S3 백엔드로 상태를 관리한다.
+
+3장에서 만든 로드밸런서, 웬 서버 클러스터, 데이터베이스 아키텍처
+
+👉 일반적으로 둘 이상의 환경이 필요 ( 스테이징 / 프로덕션 )
+
+( 비용절감을 위해 스테이징은 더 적은 리소스로 테스트 )
+
+---
+
+- 3장 결과물을 모듈화
+👉 modules/services/webserver-cluster/main.ts
+- 각 환경에서 해당 모듈을 사용 가능
+👉 stage/services/webserver-cluster/main.ts
+👉 prod/services/webserver-cluster/main.ts
+
+**모듈**
+- 재사용 가능
+- 유지 관리
+- 테스트
+
+---
+
+## 4-1. 모듈의 기본
+
+![image](https://user-images.githubusercontent.com/33514304/132936451-c5698558-595a-40f9-a1bd-e0c1dfc604fa.png)
+
+---
+
+## 4-1 모듈의 기본
+
+```terraform
+module "<NAME" {
+  source = "<SOURCE>"
+  
+  [CONFIGURE ...]
+}
+```
+
+![image](https://user-images.githubusercontent.com/33514304/132936428-d94001d6-97f6-40db-bdac-3096cc6b17dc.png)
+
+---
+
+
+## 4-1 모듈의 기본
+
+모듈 변경 및 추가시 매번 `terraform init` 필수
+
+### terraform init 하는일
+- module 다운로드
+- 백엔드 구성
+- provider plugins 구성
+
+
+---
+
+## 4-2 모듈 입력
+
+루비 기반의 테라폼
+- 함수에 매개변수 넣듯이 모듈에도 매개변수 사용 가능
+
+![width:900px](https://user-images.githubusercontent.com/33514304/132936537-267dc55e-e699-4d4d-9424-e612a5f319eb.png)
+![width:900px](https://user-images.githubusercontent.com/33514304/132936551-8f538636-fec2-4606-9eee-9ae76f39ed75.png)
+
+---
+
+## 4-2 모듈 입력
+
+클러스터의 인스턴스 max, min size도 외부 인자 사용가능
+(환경마다 다르게)
+
+![image](https://user-images.githubusercontent.com/33514304/132936604-b78916e6-9b47-423c-9ad6-6532dc76aa89.png)
+
+---
+
+## 4-3 모듈과 지역변수
+
+하드코딩 되어있는 보안 그룹의 ingress, egress 를 local을 활용하여 개선
+
+👉 왜 굳이 local로? 🙋‍♂️ 외부에서 실수로 바꾸지 못하게...은닉! 캡슐화!
+
+![image](https://user-images.githubusercontent.com/33514304/132936663-d48f2abf-514f-4d9f-abec-9fad5d69ca65.png)
+
+---
+
+## 4-4 모듈 출력 (scheduled actions)
+
+함수로 치면 반환값! 마치 반환값 처럼 이용할 수 있는 output
+
+![image](https://user-images.githubusercontent.com/33514304/132936801-68ca2732-87c0-4e62-a520-58b1adb3c003.png)
+
+![image](https://user-images.githubusercontent.com/33514304/132936728-edc33533-fd61-40c4-b248-4b226cba460d.png)
+
+- 모듈 출력 활용 `autoscaling_group_name = module.webserver_cluster.asg_name`
+
+---
+
+## 4-5 모듈 주의사항
+
+- 파일 경로
+
+- 미리 정의된 path 예약어
+  - path.module: 모듈의 경로를 반환
+  - path.root: 루트 모듈의 경로를 반환
+  - path.cwd: 현재 작업 중인 디렉토리 경로 반환
+
+![image](https://user-images.githubusercontent.com/33514304/132936892-96509e9d-bf1d-4e9e-8fd6-082792183530.png)
+
+---
+
+## 4-5 모듈 주의사항
+
+- 인라인 블록
+
+별도의 리소스 vs 인라인 블록
+
+저자: 인라인 블록보다 별도의 리소스를 쓰는게 항상 좋다.
+👉 모듈의 유연성을 위해, 외부에서 조절할 수 있도록!
+
+- aws_security_group vs aws_security_group_rule
+- aws_route_table vs aws_route
+- aws_network_acl vs aws_network_acl_rule
+
+---
+
+인라인 블록
+![image](https://user-images.githubusercontent.com/33514304/132936944-5ae390cc-53bc-4b5d-9493-38992e04cc73.png)
+별도의 리소스
+![image](https://user-images.githubusercontent.com/33514304/132936953-f4beb620-5961-43f6-a2b5-f0145e60a942.png)
+
+---
+
+[참고] 네트워크 격리
+
+같은 VPC에서 작업하다가 전역적 네트워크 설정이 변경되면 변경하지 않은 테라폼 환경에서 오류가 발생할 수 있습니다.
+👉 VPC 격리 필요
+귀찮으니까 계정 2개 쓰자...(stage용 live용)
+
+---
+
+## 4-6 모듈 버전 관리
+
+git 태그 기능으로 버전을 관리할 수 있음
+
+https://github.com/brikis98/terraform-up-and-running-code/tags
+
+![image](https://user-images.githubusercontent.com/33514304/132937027-750e9c23-5f51-4a6c-8b52-3c0ec39391aa.png)
+
+
+---
+
+# 🧐
+
+#### 저런 형식은 NPM에서도 봤는데,,,,,
+
+그러면 terraform도 NPM과 같이 모듈을 public하게 올릴 수 있는 곳이 있을까?
+
+---
+
+# WELCOME TO TERRAFORM MODULE
+
+https://registry.terraform.io/
+
+![width:800px](https://user-images.githubusercontent.com/33514304/132937070-3c681437-559c-4f8f-9b2a-5fdda18ddc62.png)
